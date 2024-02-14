@@ -64,6 +64,8 @@ field_patterns = {
     "Total Floor Area": r"Total Floor Area\n([\d.]+)",
     "BER Result": r"BER Result\n(\w+)\s*\n",
     "BER Number": r"BER Number\n(\d+)\s*\n",
+    "Co2 emissions": r"CO\s*emissions \[kg/m /yr\]\n2\n2\n([\d.]+)",
+    "Energy Value kwh/m2/yr": r"Energy Value kWh/m /yr\n2\n([\d.]+)",
     "EPC": r"EPC\n([\d.]+)",
     "CPC": r"CPC\n([\d.]+)",
     # Add additional patterns here as necessary
