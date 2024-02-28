@@ -4,7 +4,9 @@ import pandas as pd
 import pikepdf
 import io
 import re
-
+from math import ceil
+import zipfile
+import tempfile
 
 st.set_page_config(
     page_title="Part-L / Dwelling Report Extraction",
@@ -52,7 +54,51 @@ def process_single_pdf(pdf_stream, field_patterns):
             full_text += page.get_text()
     return extract_dynamic_info(full_text, field_patterns)
 
+# New function to split and process the large PDF
+def split_and_process_large_pdf(uploaded_file, start_page, end_page, file_length):
+    # Convert start and end page numbers to zero-based index for processing
+    start_page -= 1  # Adjust because users will input 1-based indices
+    end_page -= 1
 
+    try:
+        input_pdf_stream = io.BytesIO(uploaded_file.getvalue())
+        with pikepdf.open(input_pdf_stream) as pdf:
+            total_pages = end_page - start_page + 1
+            num_pdfs = ceil(total_pages / file_length)
+            pdfs_info = []
+
+            for i in range(num_pdfs):
+                current_start = start_page + i * file_length
+                current_end = min(start_page + (i + 1) * file_length, end_page + 1)
+                
+                output_pdf_stream = io.BytesIO()
+                with pikepdf.new() as new_pdf:
+                    new_pdf.pages.extend(pdf.pages[current_start:current_end])
+                    new_pdf.save(output_pdf_stream)
+                    output_pdf_stream.seek(0)
+                pdfs_info.append(output_pdf_stream)
+
+            return pdfs_info
+    except Exception as e:
+        st.error(f'Error in processing large PDF: {e}')
+        return []
+    
+
+# Function to create a zip file from split PDFs
+def create_zip_with_pdfs(pdfs_info, zip_name="split_pdfs.zip"):
+    # Create a temporary file to store the zip
+    zip_path = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    
+    with zipfile.ZipFile(zip_path.name, 'w') as zipf:
+        for idx, pdf_stream in enumerate(pdfs_info):
+            # Define a filename for each PDF
+            pdf_filename = f"document_{idx + 1}.pdf"
+            
+            # Write the PDF stream to the zip file
+            zipf.writestr(pdf_filename, pdf_stream.getvalue())
+    
+    return zip_path.name
+    
 
 with st.sidebar:
     st.title('PDF Extraction')
@@ -61,7 +107,16 @@ with st.sidebar:
         ["Part-L report", "Draft Part-L report", "Dwelling Report"],
         index=0,
     )
-    st.write("You selected: ", file_type)
+    # st.write("You selected: ", file_type)
+
+    st.write('---')  # Add a separator
+    st.header("Large PDF Processing")
+    process_large_pdf = st.checkbox("Process a Large PDF")
+
+    if process_large_pdf:
+        start_page = st.number_input("Start Page", min_value=1, value=25)
+        end_page = st.number_input("End Page", min_value=1, value=1000)
+        file_length = st.number_input("Length of Each File (in pages)", min_value=1, value=7)
 
 col = st.columns((6, 2), gap='medium')
 
@@ -128,7 +183,26 @@ with col[0]:
     # Upload multiple PDF files
     uploaded_files = st.file_uploader("", type="pdf", accept_multiple_files=True)
 
-    if uploaded_files:
+
+    if process_large_pdf and uploaded_files:
+        for uploaded_file in uploaded_files:
+            with st.spinner(f'Processing {uploaded_file.name}...'):
+                split_pdfs = split_and_process_large_pdf(uploaded_file, start_page, end_page, file_length)
+                if split_pdfs:
+                    # Create a ZIP file containing all the split PDFs
+                    zip_path = create_zip_with_pdfs(split_pdfs)
+                
+                    # Download button for the ZIP file
+                    with open(zip_path, 'rb') as f:
+                        st.download_button(
+                            label="Download Split PDFs as ZIP",
+                            data=f,
+                            file_name='split_pdfs.zip',
+                            mime='application/zip'
+                        )
+
+
+    if uploaded_files and not process_large_pdf:
     # Initialize progress bar
         progress_bar = st.progress(0)
         num_files = len(uploaded_files)
