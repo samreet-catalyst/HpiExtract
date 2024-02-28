@@ -107,7 +107,6 @@ with st.sidebar:
         ["Part-L report", "Draft Part-L report", "Dwelling Report"],
         index=0,
     )
-    # st.write("You selected: ", file_type)
 
     st.write('---')  # Add a separator
     st.header("Large PDF Processing")
@@ -131,6 +130,7 @@ if file_type == "Part-L report":
     "BER Number": r"BER Number\n(\d+)\s*\n",
     "EPC": r"EPC\n([\d.]+)",
     "CPC": r"CPC\n([\d.]+)",
+    "Energy Value kwh/m2/yr": r"Energy Value kWh/m /yr\n2\n([\d.]+)"
     # Add additional patterns here as necessary
 }
 elif file_type == "Draft Part-L report":
@@ -171,12 +171,7 @@ elif file_type == "Dwelling Report":
 
 
 with col[0]:
-    if file_type == "Part-L report":
-        st.title('Extracting Information from Part L reports')
-    elif file_type == "Draft Part-L report":
-        st.title('Extracting Information from Draft Part L reports')
-    elif file_type == "Dwelling Report":
-        st.title('Extracting Information from Dwelling Reports')
+    st.title('Extracting Information from Reports')
 
     st.write("Please upload your files below (Max ~250 files)")
 
