@@ -8,10 +8,6 @@ from math import ceil
 import zipfile
 import tempfile
 
-st.set_page_config(
-    page_title="Part-L / Dwelling Report Extraction",
-    layout="wide",
-    initial_sidebar_state="expanded")
 
 
 # Function to unlock a single PDF file using pikepdf
@@ -98,87 +94,136 @@ def create_zip_with_pdfs(pdfs_info, zip_name="split_pdfs.zip"):
             zipf.writestr(pdf_filename, pdf_stream.getvalue())
     
     return zip_path.name
-    
-
-with st.sidebar:
-    st.title('PDF Extraction')
-    file_type = st.radio(
-        "Please select the type of file you are uploading below:",
-        ["Part-L report", "Draft Part-L report", "Dwelling Report"],
-        index=0,
-    )
-
-    st.write('---')  # Add a separator
-    st.header("Large PDF Processing")
-    process_large_pdf = st.checkbox("Process a Large PDF")
-
-    if process_large_pdf:
-        start_page = st.number_input("Start Page", min_value=1, value=25)
-        end_page = st.number_input("End Page", min_value=1, value=1000)
-        file_length = st.number_input("Length of Each File (in pages)", min_value=1, value=7)
-
-col = st.columns((6, 2), gap='medium')
-
-if file_type == "Part-L report":
-    field_patterns = {  
-    "Address Line 1": r"Address line 1\n(.+?)\s*\n",
-    "Address Line 2": r"Address line 2\n(.+?)\s*\n",
-    "Address Line 3": r"Address line 3\n(.+?)\s*\n",
-    "Dwelling Type": r"Dwelling Type\n(.+?)\s*\n",
-    "Total Floor Area": r"Total Floor Area\n([\d.]+)",
-    "BER Result": r"BER Result\n(\w+)\s*\n",
-    "BER Number": r"BER Number\n(\d+)\s*\n",
-    "EPC": r"EPC\n([\d.]+)",
-    "CPC": r"CPC\n([\d.]+)",
-    "Energy Value kwh/m2/yr": r"Energy Value kWh/m /yr\n2\n([\d.]+)"
-    # Add additional patterns here as necessary
-}
-elif file_type == "Draft Part-L report":
-    field_patterns = {  
-    "Address Line 1": r"Address line 1\n(.+?)\s*\n",
-    "Address Line 2": r"Address line 2\n(.+?)\s*\n",
-    "Address Line 3": r"Address line 3\n(.+?)\s*\n",
-    "Dwelling Type": r"Dwelling Type\n(.+?)\s*\n",
-    "Total Floor Area": r"Total Floor Area\n([\d.]+)",
-    "BER Result": r"BER Result\n(\w+)\s*\n",
-    "BER Number": r"BER Number\n(\d+)\s*\n",
-    "EPC": r"EPC\n([\d.]+)",
-    "CPC": r"CPC\n([\d.]+)",
-    # Add additional patterns here as necessary
-}
-elif file_type == "Dwelling Report":
-    field_patterns = {  
-    "Dwelling Type": r"Dwelling Type\n(.+?)\s*\n",
-    "Address Line 1": r"Address line 1\n(.+?)\s*\n",
-    "Address Line 2": r"Address line 2\n(.+?)\s*\n",
-    "Address Line 3": r"Address line 3\n(.+?)\s*\n",
-    "BER Number": r"\n([\d.]+)",
-    "Total Floor Area": r"Totals\n([\d.]+)",
-    "Air permeabilitiy Adjusted result [ac/h]": r"Adjusted result of air permeability test\n\[ac/h\]\n([\d.]+)",
-    "Thermal Bridging Factor": r"Thermal bridging factor \[W/m K\]\n2\n([\d.]+)",
-    "Heat Use during Heating Season": r"Heat use during heating season \[kWh/y\]\n([\d.]+)",
-    "Main space heating system (Delivered energy)": r"Main space heating system\n([\d.]+)",
-    "Secondary space heating system (Delivered energy)": r"Secondary space heating system\n([\d.]+)",
-    "Main water heating system (Delivered energy)": r"Main water heating system\n([\d.]+)",
-    "Supplementary water heating system (Delivered energy)": r"Supplementary water heating system\n([\d.]+)",
-    "Pumps and fans (Delivered energy)": r"Pumps and fans\n([\d.]+)",
-    "Energy for lighting (Delivered energy)": r"Energy for lighting\n([\d.]+)",
-    "Energy Rating": r"Energy Rating\n([A-G\d]+)",
-    "Primary energy (Per m2 floor area)": r"Per m\s* floor area\n2\n[\d.]+\n([\d.]+)",
-    "CO2 emissions (Per m2 floor area)": r"Per m\s* floor area\n2\n[\d.]+\n[\d.]+\n([\d.]+)"
-    # Add additional patterns here as necessary
-}
 
 
-with col[0]:
-    st.title('Extracting Information from Reports')
 
-    st.write("Please upload your files below (Max ~250 files)")
+
+# Set Streamlit page configuration
+st.set_page_config(page_title="Extraction Tool", layout="wide", initial_sidebar_state="expanded")
+
+# Sidebar configuration for user input
+def sidebar_config():
+    with st.sidebar:
+        st.title('Please choose from the following:')
+
+        # Checkbox for Part L and Dwelling report
+        st.write('---')
+        st.header("Part L/Dwelling Reports")
+        process_part_L = st.checkbox("Upload Part L/Dwelling Reports")
+
+        file_type = None
+        if process_part_L:
+            file_type = st.radio(
+                "**Please select file type:**",
+                ["Part-L report", "Draft Part-L report", "Dwelling Report"],
+                index=0,
+            )
+
+        # For Air tightness reports
+        st.write('---')
+        st.header("Air Tightness Reports")
+        process_airtight = st.checkbox("Upload Air Tightness Reports")
+
+        if process_airtight:
+            file_type = st.radio(
+                "**Please select Issuer:**",
+                ["2eva", "Coming Soon"],
+                index=0,
+            )
+
+        # For processing large PDFs into smaller files
+        st.write('---')
+        st.header("Large PDF Processing")
+        process_large_pdf = st.checkbox("Process a Large PDF into sub files")
+
+        start_page, end_page, file_length = 0, 0, 0
+        if process_large_pdf:
+            start_page = st.number_input("**Start Page**", min_value=1, value=25)
+            end_page = st.number_input("**End Page**", min_value=1, value=1000)
+            file_length = st.number_input("**Length of Each File (in pages)**", min_value=1, value=7)
+
+    return process_part_L, process_airtight, process_large_pdf, file_type, start_page, end_page, file_length
+
+process_part_L, process_airtight, process_large_pdf, file_type, start_page, end_page, file_length = sidebar_config()
+
+# Define function to get field patterns based on file type
+def get_field_patterns(file_type):
+    patterns = {
+        "Part-L report": {
+            "Address Line 1": r"Address line 1\n(.+?)\s*\n",
+            "Address Line 2": r"Address line 2\n(.+?)\s*\n",
+            "Address Line 3": r"Address line 3\n(.+?)\s*\n",
+            "Dwelling Type": r"Dwelling Type\n(.+?)\s*\n",
+            "Total Floor Area": r"Total Floor Area\n([\d.]+)",
+            "BER Result": r"BER Result\n(\w+)\s*\n",
+            "BER Number": r"BER Number\n(\d+)\s*\n",
+            "EPC": r"EPC\n([\d.]+)",
+            "CPC": r"CPC\n([\d.]+)",
+            "Energy Value kwh/m2/yr": r"Energy Value kWh/m /yr\n2\n([\d.]+)"
+        },
+        "Draft Part-L report": {
+            "Address Line 1": r"Address line 1\n(.+?)\s*\n",
+            "Address Line 2": r"Address line 2\n(.+?)\s*\n",
+            "Address Line 3": r"Address line 3\n(.+?)\s*\n",
+            "Dwelling Type": r"Dwelling Type\n(.+?)\s*\n",
+            "Total Floor Area": r"Total Floor Area\n([\d.]+)",
+            "BER Result": r"BER Result\n(\w+)\s*\n",
+            "BER Number": r"BER Number\n(\d+)\s*\n",
+            "EPC": r"EPC\n([\d.]+)",
+            "CPC": r"CPC\n([\d.]+)"
+        },
+        "Dwelling Report": {
+            "Dwelling Type": r"Dwelling Type\n(.+?)\s*\n",
+            "Address Line 1": r"Address line 1\n(.+?)\s*\n",
+            "Address Line 2": r"Address line 2\n(.+?)\s*\n",
+            "Address Line 3": r"Address line 3\n(.+?)\s*\n",
+            "BER Number": r"\n([\d.]+)",
+            "Total Floor Area": r"Totals\n([\d.]+)",
+            "Air permeabilitiy Adjusted result [ac/h]": r"Adjusted result of air permeability test\n\[ac/h\]\n([\d.]+)",
+            "Thermal Bridging Factor": r"Thermal bridging factor \[W/m K\]\n2\n([\d.]+)",
+            "Heat Use during Heating Season": r"Heat use during heating season \[kWh/y\]\n([\d.]+)",
+            "Main space heating system (Delivered energy)": r"Main space heating system\n([\d.]+)",
+            "Secondary space heating system (Delivered energy)": r"Secondary space heating system\n([\d.]+)",
+            "Main water heating system (Delivered energy)": r"Main water heating system\n([\d.]+)",
+            "Supplementary water heating system (Delivered energy)": r"Supplementary water heating system\n([\d.]+)",
+            "Pumps and fans (Delivered energy)": r"Pumps and fans\n([\d.]+)",
+            "Energy for lighting (Delivered energy)": r"Energy for lighting\n([\d.]+)",
+            "Energy Rating": r"Energy Rating\n([A-G\d]+)",
+            "Primary energy (Per m2 floor area)": r"Per m\s* floor area\n2\n[\d.]+\n([\d.]+)",
+            "CO2 emissions (Per m2 floor area)": r"Per m\s* floor area\n2\n[\d.]+\n[\d.]+\n([\d.]+)"
+        },
+        "2eva": {
+           "Date of Test": r"Date of Test:\s*(\d{2}/\d{2}/\d{4})",
+            "Test File": r"Test File:\s*(.*?)\n",
+            "Company": r"Technician:\s*(2eva)",
+            "Technician": r"Technician:\s*2eva -\s*(.*)?",
+            "n50 Air Change Rate": r"n 50 :\s*1/h \(Air Change Rate\)\s*(\d+\.\d+)"
+        },
+        # Add other file types here
+    }
+    return patterns.get(file_type, {})
+
+
+# Main app logic
+# Use placeholders for dynamic content
+main_col, instructions_col = st.columns((6, 2), gap='medium')
+
+field_patterns = get_field_patterns(file_type)
+
+# Column 0 (main)
+with main_col:
+    st.title('Information Extraction and PDF processing')
+
+    # Check if a checkbox is not selected
+    if not process_airtight | process_large_pdf | process_part_L:
+        st.info("**Please select an option in the sidebar to proceed.**")
+    else:
+        st.success('**Checkbox selected! Please proceed with uploading files**')
 
     # Upload multiple PDF files
-    uploaded_files = st.file_uploader("", type="pdf", accept_multiple_files=True)
-
-
+    uploaded_files = st.file_uploader("Please upload all your files here (Max 250 files)", 
+                                      type="pdf", accept_multiple_files=True)
+    
     if process_large_pdf and uploaded_files:
         for uploaded_file in uploaded_files:
             with st.spinner(f'Processing {uploaded_file.name}...'):
@@ -197,7 +242,7 @@ with col[0]:
                         )
 
 
-    if uploaded_files and not process_large_pdf:
+    if uploaded_files and (process_airtight | process_part_L):
     # Initialize progress bar
         progress_bar = st.progress(0)
         num_files = len(uploaded_files)
@@ -229,8 +274,8 @@ with col[0]:
             mime='text/csv',
         )
 
-
-with col[1]:
+# Column 1 (instructions)
+with instructions_col:
     st.title('User Instructions')
     st.write("""
 1. Please select the file type in the sidebar on the left
