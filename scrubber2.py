@@ -127,7 +127,7 @@ def sidebar_config():
         if process_airtight:
             file_type = st.radio(
                 "**Please select Issuer:**",
-                ["2eva", "Cairn Homes", "Coming Soon"],
+                ["2eva", "Cairn Homes", "Building Envelope Tech", "Coming Soon"],
                 index=0,
             )
 
@@ -204,6 +204,12 @@ def get_field_patterns(file_type):
             "Address": r"ADDRESS\s*\n(.*\n.*\n)",
             "Technician": r"The Energy Surveyor:\s*(.*?)\n",
             "Air Change Rate": r"Mean Result\s*(.*?)\n",
+        },
+        "Building Envelope Tech": {
+            "Date of Test": r"Date tested:\s*\n(\d{2}/\d{2}/\d{4})",
+            "Address": r"Building Name & Address:\s*\n(.*\n)",
+            "Technician": r"Test Engineer:\s*(.*?)\n",
+            "Air Change Rate": r"Air permeability 50 Pa:\s*(.*?)\n",
         },
         # Add other file types here
     }
