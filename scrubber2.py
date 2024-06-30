@@ -159,7 +159,8 @@ def get_field_patterns(file_type):
             "BER Number": r"BER Number\n(\d+)\s*\n",
             "EPC": r"EPC\n([\d.]+)",
             "CPC": r"CPC\n([\d.]+)",
-            "Energy Value kwh/m2/yr": r"Energy Value kWh/m /yr\n2\n([\d.]+)"
+            "Energy Value kwh/m2/yr": r"Energy Value kWh/m /yr\n2\n([\d.]+)",
+            "CO2 Emissions (kg/m2/yr)": r"CO\s*emissions\s*\[kg/m\s*/\s*yr\]\s*2\s*2\s*(\d+\.\d+)"
         },
         "Draft Part-L report": {
             "Address Line 1": r"Address line 1\n(.+?)\s*\n",
